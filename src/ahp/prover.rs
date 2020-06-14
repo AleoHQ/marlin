@@ -6,15 +6,20 @@ use crate::ahp::verifier::*;
 use crate::ahp::*;
 
 use crate::{ToString, Vec};
-use algebra_core::{Field, PrimeField};
 use core::marker::PhantomData;
-use ff_fft::{
-    cfg_into_iter, cfg_iter, cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain,
-};
 use poly_commit::{LabeledPolynomial, Polynomial};
-use r1cs_core::{ConstraintSynthesizer, SynthesisError};
 use rand_core::RngCore;
+use snarkos_algorithms::{
+    cfg_into_iter, cfg_iter, cfg_iter_mut,
+    fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain},
+};
+use snarkos_errors::gadgets::SynthesisError;
+use snarkos_models::{
+    curves::{batch_inversion, Field, PrimeField},
+    gadgets::r1cs::ConstraintSynthesizer,
+};
+use snarkos_utilities::bytes::ToBytes;
+use std::io;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, 'b, F: PrimeField, C> {
@@ -39,13 +44,13 @@ pub struct ProverState<'a, 'b, F: PrimeField, C> {
     mask_poly: Option<LabeledPolynomial<'b, F>>,
 
     /// domain X, sized for the public input
-    domain_x: GeneralEvaluationDomain<F>,
+    domain_x: EvaluationDomain<F>,
 
     /// domain H, sized for constraints
-    domain_h: GeneralEvaluationDomain<F>,
+    domain_h: EvaluationDomain<F>,
 
     /// domain K, sized for matrix nonzero elements
-    domain_k: GeneralEvaluationDomain<F>,
+    domain_k: EvaluationDomain<F>,
 
     #[doc(hidden)]
     _field: PhantomData<C>,
@@ -66,8 +71,8 @@ pub struct ProverMsg<F: Field> {
     pub field_elements: Vec<F>,
 }
 
-impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
-    fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
+impl<F: Field> ToBytes for ProverMsg<F> {
+    fn write<W: io::Write>(&self, w: W) -> io::Result<()> {
         self.field_elements.write(w)
     }
 }
@@ -186,13 +191,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let zk_bound = 1; // One query is sufficient for our desired soundness
 
-        let domain_h = GeneralEvaluationDomain::new(num_constraints)
+        let domain_h = EvaluationDomain::new(num_constraints)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let domain_k = GeneralEvaluationDomain::new(num_non_zero)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k =
+            EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let domain_x = GeneralEvaluationDomain::new(num_input_variables)
+        let domain_x = EvaluationDomain::new(num_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         end_timer!(init_time);
@@ -324,8 +329,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
     fn calculate_t<'a>(
         matrices: impl Iterator<Item = &'a Matrix<F>>,
         matrix_randomizers: &[F],
-        input_domain: GeneralEvaluationDomain<F>,
-        domain_h: GeneralEvaluationDomain<F>,
+        input_domain: EvaluationDomain<F>,
+        domain_h: EvaluationDomain<F>,
         r_alpha_x_on_h: Vec<F>,
     ) -> Polynomial<F> {
         let mut t_evals_on_h = vec![F::zero(); domain_h.size()];
@@ -333,7 +338,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             for (r, row) in matrix.iter().enumerate() {
                 for (coeff, c) in row.iter() {
                     let index = domain_h.reindex_by_subdomain(input_domain, *c);
-                    t_evals_on_h[index] += *eta * coeff * r_alpha_x_on_h[r];
+                    t_evals_on_h[index] += &(*eta * coeff * &r_alpha_x_on_h[r]);
                 }
             }
         }
@@ -417,7 +422,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let z_poly_time = start_timer!(|| "Compute z poly");
 
-        let domain_x = GeneralEvaluationDomain::new(state.formatted_input_assignment.len())
+        let domain_x = EvaluationDomain::new(state.formatted_input_assignment.len())
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)
             .unwrap();
         let x_poly = EvaluationsOnDomain::from_vec_and_domain(
@@ -444,7 +449,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         .iter()
         .max()
         .unwrap();
-        let mul_domain = GeneralEvaluationDomain::new(mul_domain_size)
+        let mul_domain = EvaluationDomain::new(mul_domain_size)
             .expect("field is not smooth enough to construct domain");
         let mut r_alpha_evals = r_alpha_poly.evaluate_over_domain_by_ref(mul_domain);
         let summed_z_m_evals = summed_z_m.evaluate_over_domain_by_ref(mul_domain);
@@ -456,8 +461,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .zip(&z_poly_evals.evals)
             .zip(&t_poly_m_evals.evals)
             .for_each(|(((a, b), &c), d)| {
-                *a *= b;
-                *a -= c * d;
+                *a *= &b;
+                *a -= &(c * &d);
             });
         let rhs = r_alpha_evals.interpolate();
         let q_1 = mask_poly.polynomial() + &rhs;
@@ -503,7 +508,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         info: &IndexInfo<F, C>,
     ) -> impl Iterator<Item = Option<usize>> {
         let h_domain_size =
-            GeneralEvaluationDomain::<F>::compute_size_of_domain(info.num_constraints).unwrap();
+            EvaluationDomain::<F>::compute_size_of_domain(info.num_constraints).unwrap();
 
         vec![None, Some(h_domain_size - 2), None].into_iter()
     }
@@ -551,19 +556,22 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let mut inverses_c = Vec::with_capacity(domain_k.size());
 
         for i in 0..domain_k.size() {
-            inverses_a.push((beta - a_star.evals_on_K.row[i]) * (alpha - a_star.evals_on_K.col[i]));
-            inverses_b.push((beta - b_star.evals_on_K.row[i]) * (alpha - b_star.evals_on_K.col[i]));
-            inverses_c.push((beta - c_star.evals_on_K.row[i]) * (alpha - c_star.evals_on_K.col[i]));
+            inverses_a
+                .push((beta - &a_star.evals_on_K.row[i]) * &(alpha - &a_star.evals_on_K.col[i]));
+            inverses_b
+                .push((beta - &b_star.evals_on_K.row[i]) * &(alpha - &b_star.evals_on_K.col[i]));
+            inverses_c
+                .push((beta - &c_star.evals_on_K.row[i]) * &(alpha - &c_star.evals_on_K.col[i]));
         }
-        algebra_core::batch_inversion(&mut inverses_a);
-        algebra_core::batch_inversion(&mut inverses_b);
-        algebra_core::batch_inversion(&mut inverses_c);
+        batch_inversion(&mut inverses_a);
+        batch_inversion(&mut inverses_b);
+        batch_inversion(&mut inverses_c);
 
         for i in 0..domain_k.size() {
-            let t = eta_a * a_star.evals_on_K.val[i] * inverses_a[i]
-                + eta_b * b_star.evals_on_K.val[i] * inverses_b[i]
-                + eta_c * c_star.evals_on_K.val[i] * inverses_c[i];
-            let f_at_kappa = v_H_at_beta * v_H_at_alpha * t;
+            let t = eta_a * &a_star.evals_on_K.val[i] * &inverses_a[i]
+                + &(eta_b * &b_star.evals_on_K.val[i] * &inverses_b[i])
+                + &(eta_c * &c_star.evals_on_K.val[i] * &inverses_c[i]);
+            let f_at_kappa = v_H_at_beta * &v_H_at_alpha * &t;
             f_vals_on_K.push(f_at_kappa);
         }
         end_timer!(f_evals_time);
@@ -574,36 +582,36 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let g_2 = Polynomial::from_coefficients_slice(&f.coeffs[1..]);
 
-        let domain_b = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
+        let domain_b = EvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let denom_eval_time = start_timer!(|| "Computing denominator evals on B");
         let a_denom: Vec<_> = cfg_iter!(a_star.evals_on_B.row.evals)
             .zip(&a_star.evals_on_B.col.evals)
             .zip(&a_star.row_col_evals_on_B.evals)
-            .map(|((&r, c), r_c)| beta * alpha - (r * alpha) - (beta * c) + r_c)
+            .map(|((&r, c), r_c)| beta * &alpha - &(r * &alpha) - &(beta * &c) + &r_c)
             .collect();
 
         let b_denom: Vec<_> = cfg_iter!(b_star.evals_on_B.row.evals)
             .zip(&b_star.evals_on_B.col.evals)
             .zip(&b_star.row_col_evals_on_B.evals)
-            .map(|((&r, c), r_c)| beta * alpha - (r * alpha) - (beta * c) + r_c)
+            .map(|((&r, c), r_c)| beta * &alpha - &(r * &alpha) - &(beta * &c) + &r_c)
             .collect();
 
         let c_denom: Vec<_> = cfg_iter!(c_star.evals_on_B.row.evals)
             .zip(&c_star.evals_on_B.col.evals)
             .zip(&c_star.row_col_evals_on_B.evals)
-            .map(|((&r, c), r_c)| beta * alpha - (r * alpha) - (beta * c) + r_c)
+            .map(|((&r, c), r_c)| beta * &alpha - &(r * &alpha) - &(beta * &c) + &r_c)
             .collect();
         end_timer!(denom_eval_time);
 
         let a_evals_time = start_timer!(|| "Computing a evals on B");
         let a_poly_on_B = cfg_into_iter!(0..domain_b.size())
             .map(|i| {
-                let t = eta_a * a_star.evals_on_B.val.evals[i] * b_denom[i] * c_denom[i]
-                    + eta_b * b_star.evals_on_B.val.evals[i] * a_denom[i] * c_denom[i]
-                    + eta_c * c_star.evals_on_B.val.evals[i] * a_denom[i] * b_denom[i];
-                v_H_at_beta * v_H_at_alpha * t
+                let t = eta_a * &a_star.evals_on_B.val.evals[i] * &b_denom[i] * &c_denom[i]
+                    + &(eta_b * &b_star.evals_on_B.val.evals[i] * &a_denom[i] * &c_denom[i])
+                    + &(eta_c * &c_star.evals_on_B.val.evals[i] * &a_denom[i] * &b_denom[i]);
+                v_H_at_beta * &v_H_at_alpha * &t
             })
             .collect();
         end_timer!(a_evals_time);
@@ -614,7 +622,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let b_evals_time = start_timer!(|| "Computing b evals on B");
         let b_poly_on_B = cfg_into_iter!(0..domain_b.size())
-            .map(|i| a_denom[i] * b_denom[i] * c_denom[i])
+            .map(|i| a_denom[i] * &b_denom[i] * &c_denom[i])
             .collect();
         end_timer!(b_evals_time);
 
@@ -658,7 +666,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         info: &IndexInfo<F, C>,
     ) -> impl Iterator<Item = Option<usize>> {
         let num_non_zero = info.num_non_zero;
-        let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
+        let k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
 
         vec![Some(k_size - 2), None].into_iter()
     }

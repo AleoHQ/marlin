@@ -1,10 +1,11 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use crate::Vec;
-use algebra_core::PrimeField;
 use core::marker::PhantomData;
 use poly_commit::{BatchLCProof, PolynomialCommitment};
-use r1cs_core::ConstraintSynthesizer;
+use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
+use snarkos_utilities::bytes::ToBytes;
+use std::io;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -29,10 +30,10 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> algebra_core::ToBytes
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
     for IndexVerifierKey<F, PC, C>
 {
-    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
+    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }

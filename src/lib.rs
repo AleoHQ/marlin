@@ -16,18 +16,15 @@
 #![forbid(unsafe_code)]
 
 #[macro_use]
-extern crate bench_utils;
+extern crate snarkos_profiler;
 
-use algebra_core::to_bytes;
-use algebra_core::PrimeField;
-use algebra_core::ToBytes;
-use algebra_core::UniformRand;
 use core::marker::PhantomData;
 use digest::Digest;
 use poly_commit::Evaluations;
 use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
-use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
+use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
+use snarkos_utilities::{bytes::ToBytes, rand::UniformRand, to_bytes};
 
 #[cfg(not(feature = "std"))]
 #[macro_use]

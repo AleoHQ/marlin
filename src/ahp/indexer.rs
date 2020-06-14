@@ -5,13 +5,15 @@ use crate::ahp::{
     AHPForR1CS, Error,
 };
 use crate::Vec;
-use algebra_core::PrimeField;
 use derivative::Derivative;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, SynthesisError};
+use snarkos_algorithms::fft::EvaluationDomain;
+use snarkos_errors::gadgets::SynthesisError;
+use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
+use snarkos_utilities::bytes::ToBytes;
 
 use core::marker::PhantomData;
+use std::io;
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
@@ -32,8 +34,8 @@ pub struct IndexInfo<F, C> {
     cs: PhantomData<fn() -> C>,
 }
 
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexInfo<F, C> {
-    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
+impl<F: PrimeField, C: ConstraintSynthesizer<F>> ToBytes for IndexInfo<F, C> {
+    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
@@ -149,13 +151,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
             cs: PhantomData,
         };
 
-        let domain_h = GeneralEvaluationDomain::new(num_constraints)
+        let domain_h = EvaluationDomain::new(num_constraints)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let domain_k = GeneralEvaluationDomain::new(num_non_zero)
+        let domain_k =
+            EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let x_domain = GeneralEvaluationDomain::<F>::new(num_formatted_input_variables)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
+        let b_domain = EvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let mut a = ics.a_matrix();

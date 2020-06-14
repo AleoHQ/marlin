@@ -3,13 +3,14 @@
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
 use crate::{BTreeMap, Cow, String, ToString};
-use algebra_core::{Field, PrimeField};
 use derivative::Derivative;
-use ff_fft::{
-    cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
-};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSystem, Index as VarIndex, LinearCombination, SynthesisError, Variable};
+use snarkos_algorithms::{cfg_iter_mut, fft::Evaluations as EvaluationsOnDomain};
+use snarkos_errors::gadgets::SynthesisError;
+use snarkos_models::{
+    curves::{batch_inversion, Field, PrimeField},
+    gadgets::r1cs::{ConstraintSystem, Index as VarIndex, LinearCombination, Variable},
+};
 
 // #[cfg(feature = "parallel")]
 // use rayon::prelude::*;
@@ -257,10 +258,10 @@ pub struct MatrixArithmetization<'a, F: PrimeField> {
 pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
     matrix_name: &str,
     matrix: &mut Matrix<F>,
-    interpolation_domain: GeneralEvaluationDomain<F>,
-    output_domain: GeneralEvaluationDomain<F>,
-    input_domain: GeneralEvaluationDomain<F>,
-    expanded_domain: GeneralEvaluationDomain<F>,
+    interpolation_domain: EvaluationDomain<F>,
+    output_domain: EvaluationDomain<F>,
+    input_domain: EvaluationDomain<F>,
+    expanded_domain: EvaluationDomain<F>,
 ) -> MatrixArithmetization<'a, F> {
     let matrix_time = start_timer!(|| "Computing row, col, and val LDEs");
 
@@ -302,7 +303,7 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
             count += 1;
         }
     }
-    algebra_core::fields::batch_inversion::<F>(&mut inverses);
+    batch_inversion::<F>(&mut inverses);
 
     cfg_iter_mut!(val_vec)
         .zip(inverses)

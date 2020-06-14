@@ -19,12 +19,14 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-algebra-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
-ff-fft = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
-bench-utils = { git = "https://github.com/scipr-lab/zexe/" }
-r1cs-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
+snarkos-models = { path = "../snarkOS/models", version = "0.8.0" }
+snarkos-algorithms = { path = "../snarkOS/algorithms", version = "0.8.0" }
+snarkos-utilities = { path = "../snarkOS/utilities", version = "0.8.0" }
+snarkos-profiler = { path = "../snarkOS/profiler", version = "0.8.0" }
+snarkos-gadgets = { path = "../snarkOS/gadgets", version = "0.8.0" }
+snarkos-errors = { path = "../snarkOS/errors", version = "0.8.0" }
 
-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", default-features = false }
+poly-commit = { path = "../poly-commit", default-features = false }
 
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
@@ -35,7 +37,7 @@ derivative = { version = "2", features = ["use_core"] }
 
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
-algebra = { git = "https://github.com/scipr-lab/zexe/", default-features = false, features = ["bls12_381"] }
+snarkos-curves = { path = "../snarkOS/curves", version = "0.8.0" }
 
 
 [profile.release]
@@ -52,6 +54,6 @@ debug = true
 
 [features]
 default = [ "std", "parallel" ]
-std = [ "algebra-core/std", "ff-fft/std", "r1cs-core/std", "poly-commit/std" ]
-print-trace = [ "bench-utils/print-trace" ]
-parallel = [ "std", "algebra-core/parallel", "ff-fft/parallel", "poly-commit/parallel", "rayon" ]
+std = [ "poly-commit/std" ]
+print-trace = [ "snarkos-profiler/print-trace" ]
+parallel = [ "std", "rayon" ]
