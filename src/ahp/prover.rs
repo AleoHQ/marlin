@@ -18,7 +18,7 @@ use snarkos_models::{
     curves::{batch_inversion, Field, PrimeField},
     gadgets::r1cs::ConstraintSynthesizer,
 };
-use snarkos_utilities::bytes::ToBytes;
+use snarkos_utilities::bytes::{FromBytes, ToBytes};
 use std::io;
 
 /// State for the AHP prover.
@@ -64,6 +64,7 @@ impl<'a, 'b, F: PrimeField, C> ProverState<'a, 'b, F, C> {
     }
 }
 
+#[derive(Clone, Debug)]
 /// Each prover message that is not a list of oracles is a list of field elements.
 #[repr(transparent)]
 pub struct ProverMsg<F: Field> {
@@ -74,6 +75,13 @@ pub struct ProverMsg<F: Field> {
 impl<F: Field> ToBytes for ProverMsg<F> {
     fn write<W: io::Write>(&self, w: W) -> io::Result<()> {
         self.field_elements.write(w)
+    }
+}
+
+impl<F: Field> FromBytes for ProverMsg<F> {
+    fn read<R: io::Read>(mut r: R) -> io::Result<Self> {
+        let field_elements = Vec::<F>::read(&mut r)?;
+        Ok(Self { field_elements })
     }
 }
 

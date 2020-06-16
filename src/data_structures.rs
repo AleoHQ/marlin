@@ -4,7 +4,7 @@ use crate::Vec;
 use core::marker::PhantomData;
 use poly_commit::{BatchLCProof, PolynomialCommitment};
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::ToBytes;
+use snarkos_utilities::bytes::{FromBytes, ToBytes};
 use std::io;
 
 /* ************************************************************************* */
@@ -30,12 +30,40 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
+    for IndexVerifierKey<F, PC, C>
+{
+    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
+        let index_info = IndexInfo::<F, C>::read(&mut reader)?;
+        let index_comms_len = u64::read(&mut reader)?;
+        let index_comms = (0..index_comms_len)
+            .map(|_| PC::Commitment::read(&mut reader))
+            .collect::<io::Result<Vec<_>>>()?;
+        let verifier_key = PC::VerifierKey::read(&mut reader)?;
+        Ok(Self {
+            index_info,
+            index_comms,
+            verifier_key,
+        })
+    }
+}
+
 impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
     for IndexVerifierKey<F, PC, C>
 {
     fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
         self.index_info.write(&mut w)?;
-        self.index_comms.write(&mut w)
+        (self.index_comms.len() as u64).write(&mut w)?;
+        self.index_comms.write(&mut w)?;
+        self.verifier_key.write(&mut w)
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Default
+    for IndexVerifierKey<F, PC, C>
+{
+    fn default() -> Self {
+        unimplemented!();
     }
 }
 
@@ -96,6 +124,42 @@ where
     }
 }
 
+impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
+    for IndexProverKey<'a, F, PC, C>
+{
+    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
+        let index_vk = IndexVerifierKey::<F, PC, C>::read(&mut reader)?;
+        let index_comm_rands = Vec::<PC::Randomness>::read(&mut reader)?;
+        let index = Index::<'a, F, C>::read(&mut reader)?;
+        let committer_key = PC::CommitterKey::read(&mut reader)?;
+        Ok(Self {
+            index_vk,
+            index_comm_rands,
+            index,
+            committer_key,
+        })
+    }
+}
+
+impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
+    for IndexProverKey<'a, F, PC, C>
+{
+    fn write<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
+        self.index_vk.write(&mut writer)?;
+        self.index_comm_rands.write(&mut writer)?;
+        self.index.write(&mut writer)?;
+        self.committer_key.write(&mut writer)
+    }
+}
+
+impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Default
+    for IndexProverKey<'a, F, PC, C>
+{
+    fn default() -> Self {
+        unimplemented!();
+    }
+}
+
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -112,6 +176,28 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     pub pc_proof: BatchLCProof<F, PC>,
     #[doc(hidden)]
     constraint_system: PhantomData<C>,
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
+    for Proof<F, PC, C>
+{
+    fn clone(&self) -> Self {
+        Proof::<F, PC, C> {
+            commitments: self.commitments.clone(),
+            evaluations: self.evaluations.clone(),
+            prover_messages: self.prover_messages.clone(),
+            pc_proof: self.pc_proof.clone(),
+            constraint_system: PhantomData,
+        }
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> std::fmt::Debug
+    for Proof<F, PC, C>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Proof").finish()
+    }
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
@@ -195,5 +281,42 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
             prover_msg_size_in_bytes,
         );
         add_to_trace!(|| "Statistics about proof", || stats);
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
+    for Proof<F, PC, C>
+{
+    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
+        let commitments = Vec::<Vec<PC::Commitment>>::read(&mut reader)?;
+        let evaluations = Vec::<F>::read(&mut reader)?;
+        let prover_messages = Vec::<ProverMsg<F>>::read(&mut reader)?;
+        let pc_proof = BatchLCProof::<F, PC>::read(&mut reader)?;
+        Ok(Self {
+            commitments,
+            evaluations,
+            prover_messages,
+            pc_proof,
+            constraint_system: PhantomData,
+        })
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
+    for Proof<F, PC, C>
+{
+    fn write<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
+        self.commitments.write(&mut writer)?;
+        self.evaluations.write(&mut writer)?;
+        self.prover_messages.write(&mut writer)?;
+        self.pc_proof.write(&mut writer)
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Default
+    for Proof<F, PC, C>
+{
+    fn default() -> Self {
+        unimplemented!();
     }
 }

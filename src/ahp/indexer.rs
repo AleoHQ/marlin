@@ -10,7 +10,7 @@ use poly_commit::LabeledPolynomial;
 use snarkos_algorithms::fft::EvaluationDomain;
 use snarkos_errors::gadgets::SynthesisError;
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::ToBytes;
+use snarkos_utilities::bytes::{FromBytes, ToBytes};
 
 use core::marker::PhantomData;
 use std::io;
@@ -39,6 +39,21 @@ impl<F: PrimeField, C: ConstraintSynthesizer<F>> ToBytes for IndexInfo<F, C> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
+    }
+}
+
+impl<F: PrimeField, C: ConstraintSynthesizer<F>> FromBytes for IndexInfo<F, C> {
+    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
+        let num_variables = u64::read(&mut reader)? as usize;
+        let num_constraints = u64::read(&mut reader)? as usize;
+        let num_non_zero = u64::read(&mut reader)? as usize;
+        Ok(Self {
+            num_variables,
+            num_constraints,
+            num_non_zero,
+            f: PhantomData,
+            cs: PhantomData,
+        })
     }
 }
 
