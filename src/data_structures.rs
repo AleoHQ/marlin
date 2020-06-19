@@ -3,8 +3,9 @@ use crate::ahp::prover::ProverMsg;
 use crate::Vec;
 use core::marker::PhantomData;
 use poly_commit::{BatchLCProof, PolynomialCommitment};
+use snarkos_errors::serialization::SerializationError;
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::{FromBytes, ToBytes};
+use snarkos_utilities::{serialize::*, bytes::{FromBytes, ToBytes}};
 use std::io;
 
 /* ************************************************************************* */
@@ -19,6 +20,7 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
+#[derive(CanonicalSerialize)]
 pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 {
     /// Stores information about the size of the index, as well as its field of
@@ -45,17 +47,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Fr
             index_comms,
             verifier_key,
         })
-    }
-}
-
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
-    for IndexVerifierKey<F, PC, C>
-{
-    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
-        self.index_info.write(&mut w)?;
-        (self.index_comms.len() as u64).write(&mut w)?;
-        self.index_comms.write(&mut w)?;
-        self.verifier_key.write(&mut w)
     }
 }
 
@@ -93,6 +84,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
+#[derive(CanonicalSerialize)]
 pub struct IndexProverKey<
     'a,
     F: PrimeField,
@@ -141,17 +133,6 @@ impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>
     }
 }
 
-impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
-    for IndexProverKey<'a, F, PC, C>
-{
-    fn write<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
-        self.index_vk.write(&mut writer)?;
-        self.index_comm_rands.write(&mut writer)?;
-        self.index.write(&mut writer)?;
-        self.committer_key.write(&mut writer)
-    }
-}
-
 impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Default
     for IndexProverKey<'a, F, PC, C>
 {
@@ -165,6 +146,7 @@ impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
+#[derive(CanonicalSerialize)]
 pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
@@ -281,35 +263,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
             prover_msg_size_in_bytes,
         );
         add_to_trace!(|| "Statistics about proof", || stats);
-    }
-}
-
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
-    for Proof<F, PC, C>
-{
-    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
-        let commitments = Vec::<Vec<PC::Commitment>>::read(&mut reader)?;
-        let evaluations = Vec::<F>::read(&mut reader)?;
-        let prover_messages = Vec::<ProverMsg<F>>::read(&mut reader)?;
-        let pc_proof = BatchLCProof::<F, PC>::read(&mut reader)?;
-        Ok(Self {
-            commitments,
-            evaluations,
-            prover_messages,
-            pc_proof,
-            constraint_system: PhantomData,
-        })
-    }
-}
-
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
-    for Proof<F, PC, C>
-{
-    fn write<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
-        self.commitments.write(&mut writer)?;
-        self.evaluations.write(&mut writer)?;
-        self.prover_messages.write(&mut writer)?;
-        self.pc_proof.write(&mut writer)
     }
 }
 

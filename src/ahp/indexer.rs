@@ -8,9 +8,10 @@ use crate::Vec;
 use derivative::Derivative;
 use poly_commit::LabeledPolynomial;
 use snarkos_algorithms::fft::EvaluationDomain;
-use snarkos_errors::gadgets::SynthesisError;
+use snarkos_errors::{serialization::SerializationError, gadgets::SynthesisError};
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::{FromBytes, ToBytes};
+use snarkos_utilities::{serialize::CanonicalSerialize, bytes::{FromBytes, ToBytes}};
+use std::io::Write;
 
 use core::marker::PhantomData;
 use std::io;
@@ -18,7 +19,7 @@ use std::io;
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
 /// entries in any of the constraint matrices.
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct IndexInfo<F, C> {
     /// The total number of variables in the constraint system.
@@ -32,14 +33,6 @@ pub struct IndexInfo<F, C> {
     f: PhantomData<F>,
     #[doc(hidden)]
     cs: PhantomData<fn() -> C>,
-}
-
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> ToBytes for IndexInfo<F, C> {
-    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
-        (self.num_variables as u64).write(&mut w)?;
-        (self.num_constraints as u64).write(&mut w)?;
-        (self.num_non_zero as u64).write(&mut w)
-    }
 }
 
 impl<F: PrimeField, C: ConstraintSynthesizer<F>> FromBytes for IndexInfo<F, C> {
@@ -69,7 +62,7 @@ impl<F: PrimeField, C> IndexInfo<F, C> {
 /// Represents a matrix.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 /// The indexed version of the constraint system.
 /// This struct contains three kinds of objects:

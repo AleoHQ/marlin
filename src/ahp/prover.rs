@@ -13,13 +13,13 @@ use snarkos_algorithms::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain},
 };
-use snarkos_errors::gadgets::SynthesisError;
+use snarkos_errors::{serialization::SerializationError, gadgets::SynthesisError};
 use snarkos_models::{
     curves::{batch_inversion, Field, PrimeField},
     gadgets::r1cs::ConstraintSynthesizer,
 };
-use snarkos_utilities::bytes::{FromBytes, ToBytes};
-use std::io;
+use snarkos_utilities::serialize::CanonicalSerialize;
+use std::io::Write;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, 'b, F: PrimeField, C> {
@@ -64,25 +64,12 @@ impl<'a, 'b, F: PrimeField, C> ProverState<'a, 'b, F, C> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CanonicalSerialize)]
 /// Each prover message that is not a list of oracles is a list of field elements.
 #[repr(transparent)]
 pub struct ProverMsg<F: Field> {
     /// The field elements that make up the message
     pub field_elements: Vec<F>,
-}
-
-impl<F: Field> ToBytes for ProverMsg<F> {
-    fn write<W: io::Write>(&self, w: W) -> io::Result<()> {
-        self.field_elements.write(w)
-    }
-}
-
-impl<F: Field> FromBytes for ProverMsg<F> {
-    fn read<R: io::Read>(mut r: R) -> io::Result<Self> {
-        let field_elements = Vec::<F>::read(&mut r)?;
-        Ok(Self { field_elements })
-    }
 }
 
 /// The first set of prover oracles.

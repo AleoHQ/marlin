@@ -11,6 +11,9 @@ use snarkos_models::{
     curves::{batch_inversion, Field, PrimeField},
     gadgets::r1cs::{ConstraintSystem, Index as VarIndex, LinearCombination, Variable},
 };
+use snarkos_errors::serialization::SerializationError;
+use snarkos_utilities::{serialize::*, bytes::{FromBytes, ToBytes}};
+use std::io::Write;
 
 // #[cfg(feature = "parallel")]
 // use rayon::prelude::*;
@@ -216,7 +219,7 @@ pub(crate) fn make_matrices_square<F: Field, CS: ConstraintSystem<F>>(
     }
 }
 
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixEvals<'a, F: PrimeField> {
     /// Evaluations of the LDE of row.
@@ -229,7 +232,7 @@ pub struct MatrixEvals<'a, F: PrimeField> {
 
 /// Contains information about the arithmetization of the matrix M^*.
 /// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<'a, F: PrimeField> {
     /// LDE of the row indices of M^*.
