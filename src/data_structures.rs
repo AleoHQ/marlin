@@ -127,7 +127,9 @@ where
 impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
     for IndexProverKey<'a, F, PC, C>
 {
-    fn read<R: io::Read>(mut reader: R) -> io::Result<Self> {
+    fn read<R: io::Read>(_: R) -> io::Result<Self> {
+        unimplemented!();
+        /*
         let index_vk = IndexVerifierKey::<F, PC, C>::read(&mut reader)?;
         let index_comm_rands = Vec::<PC::Randomness>::read(&mut reader)?;
         let index = Index::<'a, F, C>::read(&mut reader)?;
@@ -138,17 +140,21 @@ impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>
             index,
             committer_key,
         })
+        */
     }
 }
 
 impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
     for IndexProverKey<'a, F, PC, C>
 {
-    fn write<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
+    fn write<W: io::Write>(&self, _: W) -> io::Result<()> {
+        unimplemented!();
+        /*
         self.index_vk.write(&mut writer)?;
         self.index_comm_rands.write(&mut writer)?;
         self.index.write(&mut writer)?;
         self.committer_key.write(&mut writer)
+        */
     }
 }
 
