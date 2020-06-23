@@ -27,11 +27,12 @@ snarkos-profiler = { path = "../snarkOS/profiler", version = "0.8.0" }
 snarkos-utilities = { path = "../snarkOS/utilities", version = "0.8.0" }
 poly-commit = { path = "../poly-commit", default-features = false }
 
+blake2 = { version = "0.8", default-features = false }
+derivative = { version = "2", features = ["use_core"] }
+digest = { version = "0.8" }
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
-digest = { version = "0.8" }
-derivative = { version = "2", features = ["use_core"] }
 
 
 [dev-dependencies]

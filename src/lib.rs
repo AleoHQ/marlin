@@ -20,8 +20,7 @@ extern crate snarkos_profiler;
 
 use core::marker::PhantomData;
 use digest::Digest;
-use poly_commit::Evaluations;
-use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
+use poly_commit::{Evaluations, LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use rand_core::RngCore;
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
 use snarkos_utilities::{bytes::ToBytes, rand::UniformRand, to_bytes};
@@ -94,9 +93,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| {
             format!(
-            "Marlin::UniversalSetup with max_degree {}, computed for a maximum of {} constraints, {} vars, {} non_zero",
-            max_degree, num_constraints, num_variables, num_non_zero,
-        )
+                "Marlin::UniversalSetup with max_degree {}, computed for a maximum of {} constraints, {} vars, {} non_zero",
+                max_degree, num_constraints, num_variables, num_non_zero,
+            )
         });
 
         let srs = PC::setup(max_degree, rng).map_err(Error::from_pc_err);
@@ -106,10 +105,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
 
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
-    pub fn index<C: ConstraintSynthesizer<F>>(
-        srs: &UniversalSRS<F, PC>,
+    pub fn index<'a, C: ConstraintSynthesizer<F>>(
+        srs: UniversalSRS<F, PC>,
         c: C,
-    ) -> Result<(IndexProverKey<F, PC, C>, IndexVerifierKey<F, PC, C>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<'a, F, PC, C>, IndexVerifierKey<F, PC, C>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         // TODO: Add check that c is in the correct mode.
@@ -120,7 +119,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
 
         let coeff_support = AHPForR1CS::get_degree_bounds::<C>(&index.index_info);
         let (committer_key, verifier_key) =
-            PC::trim(srs, index.max_degree(), Some(&coeff_support)).map_err(Error::from_pc_err)?;
+            PC::trim(&srs, index.max_degree(), Some(&coeff_support)).map_err(Error::from_pc_err)?;
 
         let commit_time = start_timer!(|| "Commit to index polynomials");
         let (index_comms, index_comm_rands): (_, _) =
