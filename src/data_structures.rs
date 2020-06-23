@@ -148,7 +148,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
 
     /// Prints information about the size of the proof.
     pub fn print_size_info(&self) {
-        use poly_commit::{PCCommitment, PCProof};
+        use poly_commit::PCCommitment;
 
         let size_of_fe_in_bytes = F::zero().into_repr().as_ref().len() * 8;
         let mut num_comms_without_degree_bounds = 0;
@@ -159,17 +159,17 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
         for c in self.commitments.iter().flat_map(|c| c) {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
-                size_bytes_comms_without_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_without_degree_bounds += c.serialized_size();
             } else {
                 num_comms_with_degree_bounds += 1;
-                size_bytes_comms_with_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_with_degree_bounds += c.serialized_size();
             }
         }
 
         let proofs: Vec<PC::Proof> = self.pc_proof.proof.clone().into();
         let num_proofs = proofs.len();
         for proof in &proofs {
-            size_bytes_proofs += proof.size_in_bytes();
+            size_bytes_proofs += proof.serialized_size();
         }
 
         let num_evals = self.evaluations.len();
