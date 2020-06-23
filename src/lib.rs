@@ -67,6 +67,8 @@ pub mod ahp;
 pub use ahp::AHPForR1CS;
 use ahp::EvaluationsProvider;
 
+pub mod snark;
+
 #[cfg(test)]
 mod test;
 
