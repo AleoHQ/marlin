@@ -1,16 +1,19 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::indexer::Matrix;
-use crate::ahp::*;
-use crate::{BTreeMap, Cow, String, ToString};
+use crate::{
+    ahp::{indexer::Matrix, *},
+    BTreeMap, Cow, String, ToString,
+};
 use derivative::Derivative;
 use poly_commit::LabeledPolynomial;
 use snarkos_algorithms::{cfg_iter_mut, fft::Evaluations as EvaluationsOnDomain};
-use snarkos_errors::gadgets::SynthesisError;
+use snarkos_errors::{gadgets::SynthesisError, serialization::SerializationError};
 use snarkos_models::{
     curves::{batch_inversion, Field, PrimeField},
     gadgets::r1cs::{ConstraintSystem, Index as VarIndex, LinearCombination, Variable},
 };
+
+use snarkos_utilities::serialize::*;
 
 // #[cfg(feature = "parallel")]
 // use rayon::prelude::*;
@@ -218,6 +221,7 @@ pub(crate) fn make_matrices_square<F: Field, CS: ConstraintSystem<F>>(
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct MatrixEvals<'a, F: PrimeField> {
     /// Evaluations of the LDE of row.
     pub row: Cow<'a, EvaluationsOnDomain<F>>,
@@ -231,6 +235,7 @@ pub struct MatrixEvals<'a, F: PrimeField> {
 /// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct MatrixArithmetization<'a, F: PrimeField> {
     /// LDE of the row indices of M^*.
     pub row: LabeledPolynomial<'a, F>,

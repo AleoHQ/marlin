@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::indexer::IndexInfo;
-use crate::ahp::*;
+use crate::ahp::{indexer::IndexInfo, *};
 use rand_core::RngCore;
 
 use poly_commit::QuerySet;

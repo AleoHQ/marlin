@@ -19,13 +19,12 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-snarkos-models = { path = "../snarkOS/models", version = "0.8.0" }
 snarkos-algorithms = { path = "../snarkOS/algorithms", version = "0.8.0" }
-snarkos-utilities = { path = "../snarkOS/utilities", version = "0.8.0" }
-snarkos-profiler = { path = "../snarkOS/profiler", version = "0.8.0" }
-snarkos-gadgets = { path = "../snarkOS/gadgets", version = "0.8.0" }
 snarkos-errors = { path = "../snarkOS/errors", version = "0.8.0" }
-
+snarkos-gadgets = { path = "../snarkOS/gadgets", version = "0.8.0" }
+snarkos-models = { path = "../snarkOS/models", version = "0.8.0" }
+snarkos-profiler = { path = "../snarkOS/profiler", version = "0.8.0" }
+snarkos-utilities = { path = "../snarkOS/utilities", version = "0.8.0" }
 poly-commit = { path = "../poly-commit", default-features = false }
 
 rand_core = { version = "0.5" }
