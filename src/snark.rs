@@ -23,10 +23,12 @@ use std::{
 };
 
 // Instantiated type aliases for convenience
+/// A structured reference string which will be used to derive a circuit-specific
+/// common reference string
+pub type SRS<E> = crate::UniversalSRS<<E as PairingEngine>::Fr, MultiPC<E>>;
 type Marlin<E> = crate::Marlin<<E as PairingEngine>::Fr, MultiPC<E>, Blake2s>;
 type VerifierKey<E, C> = crate::IndexVerifierKey<<E as PairingEngine>::Fr, MultiPC<E>, C>;
 type ProverKey<'a, E, C> = crate::IndexProverKey<'a, <E as PairingEngine>::Fr, MultiPC<E>, C>;
-type SRS<E> = crate::UniversalSRS<<E as PairingEngine>::Fr, MultiPC<E>>;
 type Proof<E, C> = crate::Proof<<E as PairingEngine>::Fr, MultiPC<E>, C>;
 
 /// SnarkOS-compatible Marlin
