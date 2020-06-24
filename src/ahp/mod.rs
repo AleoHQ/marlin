@@ -37,7 +37,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         // Polynomials for C
         "c_row", "c_col", "c_val", "c_row_col",
     ];
-    /// THe linear combinations that are statically known to evaluate to zero.
+    /// The linear combinations that are statically known to evaluate to zero.
     pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["inner_sumcheck", "outer_sumcheck"];
     /// The labels for the polynomials output by the AHP prover.
     #[rustfmt::skip]
