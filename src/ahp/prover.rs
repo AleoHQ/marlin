@@ -1,9 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::constraint_systems::ProverConstraintSystem;
-use crate::ahp::indexer::*;
-use crate::ahp::verifier::*;
-use crate::ahp::*;
+use crate::ahp::{constraint_systems::ProverConstraintSystem, indexer::*, verifier::*, *};
 
 use crate::{ToString, Vec};
 use core::marker::PhantomData;
@@ -13,13 +10,13 @@ use snarkos_algorithms::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain},
 };
-use snarkos_errors::gadgets::SynthesisError;
+use snarkos_errors::{gadgets::SynthesisError, serialization::SerializationError};
 use snarkos_models::{
     curves::{batch_inversion, Field, PrimeField},
     gadgets::r1cs::ConstraintSynthesizer,
 };
-use snarkos_utilities::bytes::ToBytes;
-use std::io;
+use snarkos_utilities::{bytes::ToBytes, error, serialize::*};
+use std::io::Write;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, 'b, F: PrimeField, C> {
@@ -66,14 +63,16 @@ impl<'a, 'b, F: PrimeField, C> ProverState<'a, 'b, F, C> {
 
 /// Each prover message that is not a list of oracles is a list of field elements.
 #[repr(transparent)]
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverMsg<F: Field> {
     /// The field elements that make up the message
     pub field_elements: Vec<F>,
 }
 
 impl<F: Field> ToBytes for ProverMsg<F> {
-    fn write<W: io::Write>(&self, w: W) -> io::Result<()> {
-        self.field_elements.write(w)
+    fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
+        CanonicalSerialize::serialize(self, &mut w)
+            .map_err(|_| error("Could not serialize ProverMsg"))
     }
 }
 

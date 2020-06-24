@@ -1,11 +1,18 @@
-use crate::ahp::indexer::*;
-use crate::ahp::prover::ProverMsg;
-use crate::Vec;
+use crate::{
+    ahp::{indexer::*, prover::ProverMsg},
+    Vec,
+};
 use core::marker::PhantomData;
+use derivative::Derivative;
 use poly_commit::{BatchLCProof, PolynomialCommitment};
+use snarkos_errors::serialization::SerializationError;
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::ToBytes;
-use std::io;
+use snarkos_utilities::{
+    bytes::{FromBytes, ToBytes},
+    error,
+    serialize::*,
+};
+use std::io::{self, Read, Write};
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -19,6 +26,9 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 {
     /// Stores information about the size of the index, as well as its field of
@@ -33,21 +43,18 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
 impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
     for IndexVerifierKey<F, PC, C>
 {
-    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
-        self.index_info.write(&mut w)?;
-        self.index_comms.write(&mut w)
+    fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
+        CanonicalSerialize::serialize(self, &mut w)
+            .map_err(|_| error("could not serialize IndexVerifierKey"))
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
     for IndexVerifierKey<F, PC, C>
 {
-    fn clone(&self) -> Self {
-        Self {
-            index_comms: self.index_comms.clone(),
-            index_info: self.index_info.clone(),
-            verifier_key: self.verifier_key.clone(),
-        }
+    fn read<R: Read>(mut r: R) -> io::Result<Self> {
+        CanonicalDeserialize::deserialize(&mut r)
+            .map_err(|_| error("could not deserialize IndexVerifierKey"))
     }
 }
 
@@ -65,6 +72,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
+#[derive(Derivative)]
+#[derivative(Clone(bound = "C: 'a"))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexProverKey<
     'a,
     F: PrimeField,
@@ -81,26 +91,14 @@ pub struct IndexProverKey<
     pub committer_key: PC::CommitterKey,
 }
 
-impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
-    for IndexProverKey<'a, F, PC, C>
-where
-    PC::Commitment: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            index_vk: self.index_vk.clone(),
-            index_comm_rands: self.index_comm_rands.clone(),
-            index: self.index.clone(),
-            committer_key: self.committer_key.clone(),
-        }
-    }
-}
-
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""), Clone(bound = ""))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
@@ -112,6 +110,23 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     pub pc_proof: BatchLCProof<F, PC>,
     #[doc(hidden)]
     constraint_system: PhantomData<C>,
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
+    for Proof<F, PC, C>
+{
+    fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
+        CanonicalSerialize::serialize(self, &mut w)
+            .map_err(|_| error("could not serialize IndexVerifierKey"))
+    }
+}
+
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
+    for Proof<F, PC, C>
+{
+    fn read<R: Read>(mut r: R) -> io::Result<Self> {
+        CanonicalDeserialize::deserialize(&mut r).map_err(|_| error("could not deserialize Proof"))
+    }
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
@@ -133,7 +148,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
 
     /// Prints information about the size of the proof.
     pub fn print_size_info(&self) {
-        use poly_commit::{PCCommitment, PCProof};
+        use poly_commit::PCCommitment;
 
         let size_of_fe_in_bytes = F::zero().into_repr().as_ref().len() * 8;
         let mut num_comms_without_degree_bounds = 0;
@@ -144,17 +159,17 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
         for c in self.commitments.iter().flat_map(|c| c) {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
-                size_bytes_comms_without_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_without_degree_bounds += c.serialized_size();
             } else {
                 num_comms_with_degree_bounds += 1;
-                size_bytes_comms_with_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_with_degree_bounds += c.serialized_size();
             }
         }
 
         let proofs: Vec<PC::Proof> = self.pc_proof.proof.clone().into();
         let num_proofs = proofs.len();
         for proof in &proofs {
-            size_bytes_proofs += proof.size_in_bytes();
+            size_bytes_proofs += proof.serialized_size();
         }
 
         let num_evals = self.evaluations.len();

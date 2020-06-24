@@ -1,25 +1,27 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::{
-    constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
-    AHPForR1CS, Error,
+use crate::{
+    ahp::{
+        constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
+        AHPForR1CS, Error,
+    },
+    Vec,
 };
-use crate::Vec;
 use derivative::Derivative;
 use poly_commit::LabeledPolynomial;
 use snarkos_algorithms::fft::EvaluationDomain;
-use snarkos_errors::gadgets::SynthesisError;
+use snarkos_errors::{gadgets::SynthesisError, serialization::SerializationError};
 use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
-use snarkos_utilities::bytes::ToBytes;
+use snarkos_utilities::serialize::*;
 
 use core::marker::PhantomData;
-use std::io;
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
 /// entries in any of the constraint matrices.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexInfo<F, C> {
     /// The total number of variables in the constraint system.
     pub num_variables: usize,
@@ -32,14 +34,6 @@ pub struct IndexInfo<F, C> {
     f: PhantomData<F>,
     #[doc(hidden)]
     cs: PhantomData<fn() -> C>,
-}
-
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> ToBytes for IndexInfo<F, C> {
-    fn write<W: io::Write>(&self, mut w: W) -> io::Result<()> {
-        (self.num_variables as u64).write(&mut w)?;
-        (self.num_constraints as u64).write(&mut w)?;
-        (self.num_non_zero as u64).write(&mut w)
-    }
 }
 
 impl<F: PrimeField, C> IndexInfo<F, C> {
@@ -56,6 +50,7 @@ pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
+#[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 /// The indexed version of the constraint system.
 /// This struct contains three kinds of objects:
 /// 1) `index_info` is information about the index, such as the size of the
