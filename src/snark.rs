@@ -87,7 +87,7 @@ where
     /// Creates a new Parameters instance from a previously computed universal SRS
     pub fn new(circuit: C, universal_srs: SRS<E>) -> Result<Self, SNARKError> {
         let (prover_key, verifier_key) = Marlin::index(universal_srs, circuit)
-            .map_err(|_| SNARKError::Message("could not index".to_owned()))?;
+            .map_err(|_| SNARKError::Crate("marlin", "could not index".to_owned()))?;
         Ok(Self {
             prover_key,
             verifier_key,
@@ -141,7 +141,10 @@ where
         circuit: Self::AssignedCircuit,
         rng: &mut R,
     ) -> Result<Self::Proof, SNARKError> {
-        let proof = Marlin::prove(&pp.prover_key, circuit, rng).unwrap();
+        let proving_time = start_timer!(|| "{Marlin}::Proving");
+        let proof = Marlin::prove(&pp.prover_key, circuit, rng)
+            .map_err(|_| SNARKError::Crate("marlin", "Could not generate proof".to_owned()))?;
+        end_timer!(proving_time);
         Ok(proof)
     }
 
@@ -150,9 +153,16 @@ where
         input: &Self::VerifierInput,
         proof: &Self::Proof,
     ) -> Result<bool, SNARKError> {
-        let rng = &mut rand_core::OsRng;
-        Marlin::verify(&vk, &input.to_field_elements().unwrap(), &proof, rng).unwrap();
+        let verification_time = start_timer!(|| "{Marlin}::Verifying");
+        let res = Marlin::verify(
+            &vk,
+            &input.to_field_elements()?,
+            &proof,
+            &mut rand_core::OsRng,
+        )
+        .map_err(|_| SNARKError::Crate("marlin", "Could not verify proof".to_owned()))?;
+        end_timer!(verification_time);
 
-        Ok(true)
+        Ok(res)
     }
 }
