@@ -12,7 +12,7 @@ use snarkos_utilities::{
     serialize::*,
 };
 
-use poly_commit::marlin_pc::MarlinKZG10 as MultiPC;
+pub use poly_commit::marlin_pc::MarlinKZG10 as MultiPC;
 
 use blake2::Blake2s;
 use derivative::Derivative;
@@ -26,7 +26,10 @@ use std::{
 /// A structured reference string which will be used to derive a circuit-specific
 /// common reference string
 pub type SRS<E> = crate::UniversalSRS<<E as PairingEngine>::Fr, MultiPC<E>>;
-type Marlin<E> = crate::Marlin<<E as PairingEngine>::Fr, MultiPC<E>, Blake2s>;
+
+/// Type alias for a Marlin instance using the KZG10 polynomial commitment and Blake2s
+pub type Marlin<E> = crate::Marlin<<E as PairingEngine>::Fr, MultiPC<E>, Blake2s>;
+
 type VerifierKey<E, C> = crate::IndexVerifierKey<<E as PairingEngine>::Fr, MultiPC<E>, C>;
 type ProverKey<'a, E, C> = crate::IndexProverKey<'a, <E as PairingEngine>::Fr, MultiPC<E>, C>;
 type Proof<E, C> = crate::Proof<<E as PairingEngine>::Fr, MultiPC<E>, C>;
