@@ -74,7 +74,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 /// Proving key for a specific index (i.e., R1CS matrices).
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: 'a"))]
-#[derive(CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexProverKey<
     'a,
     F: PrimeField,

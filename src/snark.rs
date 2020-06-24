@@ -50,7 +50,7 @@ where
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: 'a"))]
-#[derive(CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 /// The public parameters used for the circuit's instantiation.
 /// Generating the parameters is done via the `setup` function of the SNARK trait
 /// by providing it the previously generated universal srs.
