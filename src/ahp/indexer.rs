@@ -1,15 +1,19 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::{
-    constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
-    AHPForR1CS, Error,
+use crate::{
+    ahp::{
+        constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
+        AHPForR1CS,
+        Error,
+    },
+    Vec,
 };
-use crate::Vec;
-use algebra_core::PrimeField;
 use derivative::Derivative;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, SynthesisError};
+use snarkos_algorithms::fft::EvaluationDomain;
+use snarkos_errors::{gadgets::SynthesisError, serialization::SerializationError};
+use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
+use snarkos_utilities::serialize::*;
 
 use core::marker::PhantomData;
 
@@ -18,6 +22,7 @@ use core::marker::PhantomData;
 /// entries in any of the constraint matrices.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
+#[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexInfo<F, C> {
     /// The total number of variables in the constraint system.
     pub num_variables: usize,
@@ -32,20 +37,11 @@ pub struct IndexInfo<F, C> {
     cs: PhantomData<fn() -> C>,
 }
 
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexInfo<F, C> {
-    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
-        (self.num_variables as u64).write(&mut w)?;
-        (self.num_constraints as u64).write(&mut w)?;
-        (self.num_non_zero as u64).write(&mut w)
-    }
-}
-
 impl<F: PrimeField, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
     pub fn max_degree(&self) -> usize {
-        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero)
-            .unwrap()
+        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero).unwrap()
     }
 }
 
@@ -54,6 +50,7 @@ pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
+#[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 /// The indexed version of the constraint system.
 /// This struct contains three kinds of objects:
 /// 1) `index_info` is information about the index, such as the size of the
@@ -149,14 +146,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
             cs: PhantomData,
         };
 
-        let domain_h = GeneralEvaluationDomain::new(num_constraints)
+        let domain_h = EvaluationDomain::new(num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k = EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let domain_k = GeneralEvaluationDomain::new(num_non_zero)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let x_domain = GeneralEvaluationDomain::<F>::new(num_formatted_input_variables)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let b_domain =
+            EvaluationDomain::<F>::new(3 * domain_k.size() - 3).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let mut a = ics.a_matrix();
         let mut b = ics.b_matrix();

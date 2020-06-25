@@ -1,18 +1,16 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::indexer::IndexInfo;
-use crate::ahp::*;
-use r1cs_core::ConstraintSynthesizer;
+use crate::ahp::{indexer::IndexInfo, *};
 use rand_core::RngCore;
 
-use algebra_core::PrimeField;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::QuerySet;
+use snarkos_algorithms::fft::EvaluationDomain;
+use snarkos_models::{curves::PrimeField, gadgets::r1cs::ConstraintSynthesizer};
 
 /// State of the AHP verifier
 pub struct VerifierState<F: PrimeField, C> {
-    pub(crate) domain_h: GeneralEvaluationDomain<F>,
-    pub(crate) domain_k: GeneralEvaluationDomain<F>,
+    pub(crate) domain_h: EvaluationDomain<F>,
+    pub(crate) domain_k: EvaluationDomain<F>,
 
     pub(crate) first_round_msg: Option<VerifierFirstMsg<F>>,
     pub(crate) second_round_msg: Option<VerifierSecondMsg<F>>,
@@ -51,11 +49,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
             return Err(Error::NonSquareMatrix);
         }
 
-        let domain_h = GeneralEvaluationDomain::new(index_info.num_constraints)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_h =
+            EvaluationDomain::new(index_info.num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let domain_k = GeneralEvaluationDomain::new(index_info.num_non_zero)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k =
+            EvaluationDomain::new(index_info.num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let alpha = domain_h.sample_element_outside_domain(rng);
         let eta_a = F::rand(rng);
