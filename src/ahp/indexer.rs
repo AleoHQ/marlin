@@ -3,7 +3,8 @@
 use crate::{
     ahp::{
         constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
-        AHPForR1CS, Error,
+        AHPForR1CS,
+        Error,
     },
     Vec,
 };
@@ -40,8 +41,7 @@ impl<F: PrimeField, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
     pub fn max_degree(&self) -> usize {
-        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero)
-            .unwrap()
+        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero).unwrap()
     }
 }
 
@@ -146,14 +146,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
             cs: PhantomData,
         };
 
-        let domain_h = EvaluationDomain::new(num_constraints)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let domain_k =
-            EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_h = EvaluationDomain::new(num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k = EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain = EvaluationDomain::<F>::new(3 * domain_k.size() - 3)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let b_domain =
+            EvaluationDomain::<F>::new(3 * domain_k.size() - 3).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let mut a = ics.a_matrix();
         let mut b = ics.b_matrix();

@@ -49,11 +49,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
             return Err(Error::NonSquareMatrix);
         }
 
-        let domain_h = EvaluationDomain::new(index_info.num_constraints)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_h =
+            EvaluationDomain::new(index_info.num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let domain_k = EvaluationDomain::new(index_info.num_non_zero)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k =
+            EvaluationDomain::new(index_info.num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let alpha = domain_h.sample_element_outside_domain(rng);
         let eta_a = F::rand(rng);
