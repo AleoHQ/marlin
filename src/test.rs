@@ -13,10 +13,7 @@ struct Circuit<F: Field> {
 }
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<ConstraintF> {
-    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.alloc_input(
@@ -38,12 +35,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
         }
 
         for i in 0..self.num_constraints {
-            cs.enforce(
-                || format!("constraint {}", i),
-                |lc| lc + a,
-                |lc| lc + b,
-                |lc| lc + c,
-            );
+            cs.enforce(|| format!("constraint {}", i), |lc| lc + a, |lc| lc + b, |lc| lc + c);
         }
         Ok(())
     }
@@ -80,8 +72,7 @@ mod marlin {
                 num_variables,
             };
 
-            let (index_pk, index_vk) =
-                MarlinInst::index(universal_srs.clone(), circ.clone()).unwrap();
+            let (index_pk, index_vk) = MarlinInst::index(universal_srs.clone(), circ.clone()).unwrap();
             println!("Called index");
 
             let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();

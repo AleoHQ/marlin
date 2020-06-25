@@ -8,7 +8,8 @@ use snarkos_models::{
 use snarkos_profiler::{end_timer, start_timer};
 use snarkos_utilities::{
     bytes::{FromBytes, ToBytes},
-    error, io,
+    error,
+    io,
     serialize::*,
 };
 
@@ -67,15 +68,13 @@ where
 
 impl<'a, E: PairingEngine, C: ConstraintSynthesizer<E::Fr>> FromBytes for Parameters<'a, E, C> {
     fn read<R: Read>(mut r: R) -> io::Result<Self> {
-        CanonicalDeserialize::deserialize(&mut r)
-            .map_err(|_| error("could not deserialize parameters"))
+        CanonicalDeserialize::deserialize(&mut r).map_err(|_| error("could not deserialize parameters"))
     }
 }
 
 impl<'a, E: PairingEngine, C: ConstraintSynthesizer<E::Fr>> ToBytes for Parameters<'a, E, C> {
     fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
-        CanonicalSerialize::serialize(self, &mut w)
-            .map_err(|_| error("could not serialize parameters"))
+        CanonicalSerialize::serialize(self, &mut w).map_err(|_| error("could not serialize parameters"))
     }
 }
 
@@ -112,7 +111,8 @@ where
     V: ToConstraintField<E::Fr>,
 {
     type AssignedCircuit = C;
-    type Circuit = (C, SRS<E>); // Abuse the Circuit type to pass the SRS as well.
+    type Circuit = (C, SRS<E>);
+    // Abuse the Circuit type to pass the SRS as well.
     type PreparedVerificationParameters = VerifierKey<E, C>;
     type Proof = Proof<E, C>;
     type ProvingParameters = Parameters<'a, E, C>;
@@ -122,13 +122,7 @@ where
     fn setup<R: RngCore>(
         (circuit, srs): Self::Circuit,
         _rng: &mut R, // The Marlin Setup is deterministic
-    ) -> Result<
-        (
-            Self::ProvingParameters,
-            Self::PreparedVerificationParameters,
-        ),
-        SNARKError,
-    > {
+    ) -> Result<(Self::ProvingParameters, Self::PreparedVerificationParameters), SNARKError> {
         let setup_time = start_timer!(|| "{Marlin}::Setup");
         let parameters = Parameters::<E, C>::new(circuit, srs)?;
         end_timer!(setup_time);
@@ -154,13 +148,8 @@ where
         proof: &Self::Proof,
     ) -> Result<bool, SNARKError> {
         let verification_time = start_timer!(|| "{Marlin}::Verifying");
-        let res = Marlin::verify(
-            &vk,
-            &input.to_field_elements()?,
-            &proof,
-            &mut rand_core::OsRng,
-        )
-        .map_err(|_| SNARKError::Crate("marlin", "Could not verify proof".to_owned()))?;
+        let res = Marlin::verify(&vk, &input.to_field_elements()?, &proof, &mut rand_core::OsRng)
+            .map_err(|_| SNARKError::Crate("marlin", "Could not verify proof".to_owned()))?;
         end_timer!(verification_time);
 
         Ok(res)

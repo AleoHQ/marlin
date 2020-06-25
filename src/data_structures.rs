@@ -29,8 +29,7 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 #[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
-{
+pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F, C>,
@@ -40,27 +39,19 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
-    for IndexVerifierKey<F, PC, C>
-{
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes for IndexVerifierKey<F, PC, C> {
     fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
-        CanonicalSerialize::serialize(self, &mut w)
-            .map_err(|_| error("could not serialize IndexVerifierKey"))
+        CanonicalSerialize::serialize(self, &mut w).map_err(|_| error("could not serialize IndexVerifierKey"))
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
-    for IndexVerifierKey<F, PC, C>
-{
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes for IndexVerifierKey<F, PC, C> {
     fn read<R: Read>(mut r: R) -> io::Result<Self> {
-        CanonicalDeserialize::deserialize(&mut r)
-            .map_err(|_| error("could not deserialize IndexVerifierKey"))
+        CanonicalDeserialize::deserialize(&mut r).map_err(|_| error("could not deserialize IndexVerifierKey"))
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
-    IndexVerifierKey<F, PC, C>
-{
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> IndexVerifierKey<F, PC, C> {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
         self.index_comms.iter()
@@ -75,12 +66,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: 'a"))]
 #[derive(Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct IndexProverKey<
-    'a,
-    F: PrimeField,
-    PC: PolynomialCommitment<F>,
-    C: ConstraintSynthesizer<F>,
-> {
+pub struct IndexProverKey<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC, C>,
     /// The randomness for the index polynomial commitments.
@@ -112,18 +98,13 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     constraint_system: PhantomData<C>,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes
-    for Proof<F, PC, C>
-{
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ToBytes for Proof<F, PC, C> {
     fn write<W: Write>(&self, mut w: W) -> io::Result<()> {
-        CanonicalSerialize::serialize(self, &mut w)
-            .map_err(|_| error("could not serialize IndexVerifierKey"))
+        CanonicalSerialize::serialize(self, &mut w).map_err(|_| error("could not serialize IndexVerifierKey"))
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes
-    for Proof<F, PC, C>
-{
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> FromBytes for Proof<F, PC, C> {
     fn read<R: Read>(mut r: R) -> io::Result<Self> {
         CanonicalDeserialize::deserialize(&mut r).map_err(|_| error("could not deserialize Proof"))
     }
@@ -174,11 +155,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
 
         let num_evals = self.evaluations.len();
         let evals_size_in_bytes = num_evals * size_of_fe_in_bytes;
-        let num_prover_messages: usize = self
-            .prover_messages
-            .iter()
-            .map(|v| v.field_elements.len())
-            .sum();
+        let num_prover_messages: usize = self.prover_messages.iter().map(|v| v.field_elements.len()).sum();
         let prover_msg_size_in_bytes = num_prover_messages * size_of_fe_in_bytes;
         let arg_size = size_bytes_comms_with_degree_bounds
             + size_bytes_comms_without_degree_bounds
