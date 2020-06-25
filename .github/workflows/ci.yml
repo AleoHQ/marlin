@@ -34,6 +34,8 @@ jobs:
 
     - name: cargo fmt --check
       uses: actions-rs/cargo@v1
+      env:
+        CARGO_NET_GIT_FETCH_WITH_CLI: true
       with:
         command: fmt
         args: --all -- --check
@@ -69,12 +71,16 @@ jobs:
 
       - name: Check examples
         uses: actions-rs/cargo@v1
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
         with:
             command: check
             args: --examples --all
 
       - name: Check examples with all features on stable
         uses: actions-rs/cargo@v1
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
         with:
             command: check
             args: --examples --all-features --all
@@ -82,6 +88,8 @@ jobs:
 
       - name: Check benchmarks on nightly
         uses: actions-rs/cargo@v1
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
         with:
             command: check
             args: --all-features --examples --all --benches
@@ -89,6 +97,8 @@ jobs:
 
       - name: Test
         uses: actions-rs/cargo@v1
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
         with:
             command: test
             args: --release
