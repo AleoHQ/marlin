@@ -22,7 +22,7 @@ jobs:
         echo "${{ secrets.SNARKOS_DEPLOY_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         eval $(ssh-agent -s)
-        ssh-add -K ~/.ssh/id_rsa
+        ssh-add -k ~/.ssh/id_rsa
 
     - name: Install Rust
       uses: actions-rs/toolchain@v1
@@ -58,7 +58,7 @@ jobs:
           echo "${{ secrets.SNARKOS_DEPLOY_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           eval $(ssh-agent -s)
-          ssh-add -K ~/.ssh/id_rsa
+          ssh-add -k ~/.ssh/id_rsa
 
       - name: Install Rust (${{ matrix.rust }})
         uses: actions-rs/toolchain@v1
@@ -106,7 +106,7 @@ jobs:
 #          echo "${{ secrets.SNARKOS_DEPLOY_KEY }}" > ~/.ssh/id_rsa
 #          chmod 600 ~/.ssh/id_rsa
 #          eval $(ssh-agent -s)
-#          ssh-add -K ~/.ssh/id_rsa
+#          ssh-add -k ~/.ssh/id_rsa
 #
 #      - name: Install Rust (${{ matrix.rust }})
 #        uses: actions-rs/toolchain@v1
